@@ -1,0 +1,298 @@
+{
+  "info": {
+    "name": "物流管理系统接口测试",
+    "description": "物流管理系统 RESTful API 接口测试集合，包含运单 CRUD、状态管理、权限验证等场景",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "{{base_url}}" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "用户认证",
+      "item": [
+        {
+          "name": "登录获取 Token",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"123456\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('登录成功，状态码200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('返回 token', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('token', jsonData.data.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "未登录访问接口（401）",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/waybill?page=1&size=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('未认证返回401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "运单查询",
+      "item": [
+        {
+          "name": "查询运单列表（分页）",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/waybill?page=1&size=10",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('返回分页数据', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data).to.have.property('list');",
+                  "    pm.expect(jsonData.data).to.have.property('total');",
+                  "    pm.expect(jsonData.data.list).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "按运单号查询",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/waybill/202601010001",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态码200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('返回正确的运单号', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.waybillNo).to.eql('202601010001');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "查询不存在的运单号（404）",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/waybill/999999999999",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('不存在的运单返回404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "创建运单",
+      "item": [
+        {
+          "name": "创建运单 - 完整信息",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/waybill",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderName\": \"张三\",\n  \"senderPhone\": \"13800138001\",\n  \"senderAddress\": \"广州市天河区科韵路100号\",\n  \"receiverName\": \"李四\",\n  \"receiverPhone\": \"13900139001\",\n  \"receiverAddress\": \"深圳市南山区科技园200号\",\n  \"goodsName\": \"电子产品\",\n  \"goodsWeight\": 2.5,\n  \"transportType\": \"陆运\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('创建成功返回201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('返回运单号', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.waybillNo).to.be.a('string');",
+                  "    pm.expect(jsonData.data.waybillNo).to.have.lengthOf(12);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "创建运单 - 必填字段缺失（400）",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/waybill",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderName\": \"张三\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('缺少必填字段返回400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('返回错误提示', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.message).to.include('必填');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "创建运单 - 手机号格式错误（400）",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/waybill",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"senderName\": \"张三\",\n  \"senderPhone\": \"123\",\n  \"senderAddress\": \"广州市\",\n  \"receiverName\": \"李四\",\n  \"receiverPhone\": \"13900139001\",\n  \"receiverAddress\": \"深圳市\",\n  \"goodsName\": \"测试\",\n  \"goodsWeight\": 1,\n  \"transportType\": \"陆运\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('手机号格式错误返回400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "状态更新",
+      "item": [
+        {
+          "name": "更新运单状态 - 正常流转",
+          "request": {
+            "method": "PUT",
+            "url": "{{base_url}}/api/waybill/202601010001/status",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"运输中\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('状态更新成功', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('状态已变更', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.data.status).to.eql('运输中');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "普通员工删除运单（403）",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/waybill/202601010001",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }]
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('普通员工无权删除，返回403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
